@@ -191,6 +191,70 @@
             color: #667eea;
             margin-bottom: 10px;
         }
+        
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 40px;
+            padding: 20px;
+        }
+        
+        .pagination button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+        }
+        
+        .pagination button:hover:not(:disabled) {
+            background: #5568d3;
+        }
+        
+        .pagination button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .pagination .page-info {
+            font-size: 1em;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        @media (max-width: 768px) {
+            .filters {
+                flex-direction: column;
+            }
+            
+            .filter-group {
+                width: 100%;
+            }
+            
+            .recipes-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .pagination {
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .pagination button {
+                padding: 8px 16px;
+                font-size: 0.9em;
+            }
+        }
     </style>
 </head>
 <body>
@@ -231,19 +295,182 @@
             </div>
             
             <div class="recipes-grid" id="recipesGrid">
-                <!-- TODO: Populate recipes dynamically from API -->
+                <!-- Recipes will be populated dynamically from API -->
                 <div class="no-recipes">
-                    <h2>No Recipes Found</h2>
-                    <p>Try adjusting your filters or check back later!</p>
+                    <h2>Loading...</h2>
+                    <p>Please wait while we fetch the recipes...</p>
                 </div>
+            </div>
+            
+            <div class="pagination" id="pagination" style="display: none;">
+                <button id="prevBtn" onclick="goToPage(currentPage - 1)">← Previous</button>
+                <span class="page-info" id="pageInfo">Page 1 of 1</span>
+                <button id="nextBtn" onclick="goToPage(currentPage + 1)">Next →</button>
             </div>
         </div>
     </div>
     
-    <script>
-        // TODO: Add JavaScript to fetch and display recipes from API
-        // TODO: Implement filtering functionality
-        // TODO: Add search functionality
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // Get initial values from server-side model
+        let currentPage = /*[[${currentPage}]]*/ 1;
+        let totalPages = 1;
+        const pageSize = 12;
+        
+        // Get filter elements
+        const difficultySelect = document.getElementById('difficulty');
+        const cuisineSelect = document.getElementById('cuisine');
+        const searchInput = document.getElementById('search');
+        
+        // Set initial filter values from URL parameters
+        difficultySelect.value = /*[[${difficulty}]]*/ '';
+        cuisineSelect.value = /*[[${cuisine}]]*/ '';
+        searchInput.value = /*[[${search}]]*/ '';
+        
+        // Load recipes on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadRecipes();
+        });
+        
+        // Add event listeners for filters
+        difficultySelect.addEventListener('change', () => {
+            currentPage = 1;
+            loadRecipes();
+        });
+        
+        cuisineSelect.addEventListener('change', () => {
+            currentPage = 1;
+            loadRecipes();
+        });
+        
+        // Debounce search input
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                currentPage = 1;
+                loadRecipes();
+            }, 500);
+        });
+        
+        async function loadRecipes() {
+            try {
+                const difficulty = difficultySelect.value;
+                const cuisine = cuisineSelect.value;
+                const search = searchInput.value;
+                
+                // Build API URL with pagination and filters
+                let url = `/api/recipes/paginated?page=${currentPage - 1}&size=${pageSize}`;
+                if (difficulty) url += `&difficulty=${encodeURIComponent(difficulty)}`;
+                if (cuisine) url += `&cuisine=${encodeURIComponent(cuisine)}`;
+                if (search) url += `&search=${encodeURIComponent(search)}`;
+                
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch recipes');
+                }
+                
+                const data = await response.json();
+                displayRecipes(data.content);
+                updatePagination(data);
+                updateURL();
+            } catch (error) {
+                console.error('Error loading recipes:', error);
+                showError();
+            }
+        }
+        
+        function displayRecipes(recipes) {
+            const grid = document.getElementById('recipesGrid');
+            
+            if (recipes.length === 0) {
+                grid.innerHTML = `
+                    <div class="no-recipes">
+                        <h2>No Recipes Found</h2>
+                        <p>Try adjusting your filters or check back later!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = recipes.map(recipe => `
+                <div class="recipe-card">
+                    <div class="recipe-header">
+                        <h3>${escapeHtml(recipe.name)}</h3>
+                        <span class="recipe-cuisine">${escapeHtml(recipe.cuisineType || 'Unknown')}</span>
+                    </div>
+                    <div class="recipe-body">
+                        <div class="recipe-meta">
+                            <span>⏱️ ${recipe.prepTime + recipe.cookTime} min</span>
+                            <span class="difficulty ${(recipe.difficultyLevel || '').toLowerCase()}">
+                                ${escapeHtml(recipe.difficultyLevel || 'Unknown')}
+                            </span>
+                        </div>
+                        <p class="recipe-description">${escapeHtml(recipe.description || 'No description available')}</p>
+                        <div class="recipe-footer">
+                            <span class="servings">🍽️ Serves ${recipe.servings || 'N/A'}</span>
+                            <a href="#" class="view-recipe" onclick="alert('Recipe details coming soon!'); return false;">View Recipe</a>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updatePagination(data) {
+            totalPages = data.totalPages;
+            const pagination = document.getElementById('pagination');
+            const pageInfo = document.getElementById('pageInfo');
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            
+            if (totalPages > 0) {
+                pagination.style.display = 'flex';
+                pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+                prevBtn.disabled = currentPage <= 1;
+                nextBtn.disabled = currentPage >= totalPages;
+            } else {
+                pagination.style.display = 'none';
+            }
+        }
+        
+        function goToPage(page) {
+            if (page < 1 || page > totalPages) return;
+            currentPage = page;
+            loadRecipes();
+        }
+        
+        function updateURL() {
+            const params = new URLSearchParams();
+            params.set('page', currentPage);
+            
+            const difficulty = difficultySelect.value;
+            const cuisine = cuisineSelect.value;
+            const search = searchInput.value;
+            
+            if (difficulty) params.set('difficulty', difficulty);
+            if (cuisine) params.set('cuisine', cuisine);
+            if (search) params.set('search', search);
+            
+            const newURL = `${window.location.pathname}?${params.toString()}`;
+            window.history.pushState({}, '', newURL);
+        }
+        
+        function showError() {
+            const grid = document.getElementById('recipesGrid');
+            grid.innerHTML = `
+                <div class="no-recipes">
+                    <h2>Error Loading Recipes</h2>
+                    <p>Something went wrong. Please try again later.</p>
+                </div>
+            `;
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        /*]]>*/
     </script>
 </body>
 </html>

@@ -3,6 +3,7 @@ package com.coveros.training.flavorhub.controller;
 import com.coveros.training.flavorhub.model.Recipe;
 import com.coveros.training.flavorhub.service.RecipeService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,26 @@ public class RecipeController {
     @GetMapping
     public ResponseEntity<List<Recipe>> getAllRecipes() {
         return ResponseEntity.ok(recipeService.getAllRecipes());
+    }
+    
+    /**
+     * Get recipes with pagination support
+     * @param page Page number (default: 0)
+     * @param size Page size (default: 12)
+     * @param difficulty Optional difficulty filter
+     * @param cuisine Optional cuisine filter
+     * @param search Optional search term
+     * @return Page of recipes
+     */
+    @GetMapping("/paginated")
+    public ResponseEntity<Page<Recipe>> getRecipesPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(required = false) String difficulty,
+            @RequestParam(required = false) String cuisine,
+            @RequestParam(required = false) String search) {
+        Page<Recipe> recipes = recipeService.getRecipesWithPagination(page, size, difficulty, cuisine, search);
+        return ResponseEntity.ok(recipes);
     }
     
     @GetMapping("/{id}")
