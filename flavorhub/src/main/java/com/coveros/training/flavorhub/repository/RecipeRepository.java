@@ -1,6 +1,8 @@
 package com.coveros.training.flavorhub.repository;
 
 import com.coveros.training.flavorhub.model.Recipe;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,6 +30,46 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
      * Find recipes with names containing the search term (case-insensitive)
      */
     List<Recipe> findByNameContainingIgnoreCase(String searchTerm);
+    
+    /**
+     * Find all recipes with pagination support
+     */
+    Page<Recipe> findAll(Pageable pageable);
+    
+    /**
+     * Find recipes by difficulty level with pagination
+     */
+    Page<Recipe> findByDifficultyLevel(String difficultyLevel, Pageable pageable);
+    
+    /**
+     * Find recipes by cuisine type with pagination
+     */
+    Page<Recipe> findByCuisineType(String cuisineType, Pageable pageable);
+    
+    /**
+     * Find recipes by name containing search term with pagination
+     */
+    Page<Recipe> findByNameContainingIgnoreCase(String searchTerm, Pageable pageable);
+    
+    /**
+     * Find recipes by difficulty and cuisine with pagination
+     */
+    Page<Recipe> findByDifficultyLevelAndCuisineType(String difficultyLevel, String cuisineType, Pageable pageable);
+    
+    /**
+     * Find recipes by difficulty and name containing search term with pagination
+     */
+    Page<Recipe> findByDifficultyLevelAndNameContainingIgnoreCase(String difficultyLevel, String searchTerm, Pageable pageable);
+    
+    /**
+     * Find recipes by cuisine and name containing search term with pagination
+     */
+    Page<Recipe> findByCuisineTypeAndNameContainingIgnoreCase(String cuisineType, String searchTerm, Pageable pageable);
+    
+    /**
+     * Find recipes by all filters with pagination
+     */
+    Page<Recipe> findByDifficultyLevelAndCuisineTypeAndNameContainingIgnoreCase(String difficultyLevel, String cuisineType, String searchTerm, Pageable pageable);
     
     /**
      * Find recipes that can be made in a specific time (total time = prep + cook)
